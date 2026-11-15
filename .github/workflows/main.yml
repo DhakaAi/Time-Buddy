@@ -1,1 +1,67 @@
+name: Build TimeBuddy APK
 
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract app source archive
+        shell: bash
+        run: |
+          if [ -f "TimeBuddy_Cloud_Build_Project.zip" ]; then
+            mkdir -p app-source
+            unzip -o "TimeBuddy_Cloud_Build_Project.zip" -d app-source
+          fi
+
+      - name: Locate Flutter project
+        shell: bash
+        run: |
+          PROJECT_DIR="$(find . -name pubspec.yaml -not -path '*/.dart_tool/*' -print -quit | xargs -r dirname)"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Could not find pubspec.yaml. The source archive may be incomplete."
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Flutter project found at: $PROJECT_DIR"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      - name: Run Flutter tests
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter test
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: timebuddy-preview-apk
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
