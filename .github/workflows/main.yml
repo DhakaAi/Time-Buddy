@@ -18,15 +18,13 @@ jobs:
       - name: Extract app source archive
         shell: bash
         run: |
-          if [ -f "TimeBuddy_Cloud_Build_Project.zip" ]; then
-            mkdir -p app-source
-            unzip -o "TimeBuddy_Cloud_Build_Project.zip" -d app-source
-          fi
+          mkdir -p app-source
+          unzip -o "TimeBuddy_Cloud_Build_Project.zip" -d app-source
 
       - name: Locate Flutter project
         shell: bash
         run: |
-          PROJECT_DIR="$(find . -name pubspec.yaml -not -path '*/.dart_tool/*' -print -quit | xargs -r dirname)"
+          PROJECT_DIR="$(find app-source -name pubspec.yaml -not -path '*/.dart_tool/*' -print -quit | xargs -r dirname)"
           if [ -z "$PROJECT_DIR" ]; then
             echo "Could not find pubspec.yaml. The source archive may be incomplete."
             exit 1
@@ -45,6 +43,10 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      - name: Generate Android platform files
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter create --platforms=android --org com.dhakaai .
 
       - name: Install dependencies
         working-directory: ${{ env.PROJECT_DIR }}
